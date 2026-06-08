@@ -1,42 +1,28 @@
 import React from 'react'
 import { ADMIN_CONFIG } from '../../config/adminConfig.js'
 
-// ── Step 1: Ask GAS to generate + email the OTP ─────────────
-// GAS will reject the request if the email is not in ADMIN_EMAILS.
-// No email list is stored in the frontend.
-async function sendOtpViaGas(email) {
-  const url = ADMIN_CONFIG.gasScriptUrl
-  if (!url || url === 'YOUR_GAS_SCRIPT_URL_HERE') {
-    throw new Error('GAS script URL not configured in adminConfig.js')
-  }
+// Calls the Python Render backend — which calls GAS server-side
+async function sendOtpViaBackend(email) {
+  const url = `${ADMIN_CONFIG.gasScriptUrl}/auth/auth/otp/send`
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'sendAdminOtp',
-      email,
-    }),
+    body: JSON.stringify({ email, suk_key: 'bannerghatta' }),
   })
   const data = await res.json()
   if (!data.success) throw new Error(data.message || 'Failed to send OTP')
 }
 
-// ── Step 2: Ask GAS to verify the OTP the user typed ────────
-async function verifyOtpViaGas(email, otp) {
-  const url = ADMIN_CONFIG.gasScriptUrl
+async function verifyOtpViaBackend(email, otp) {
+  const url = `${ADMIN_CONFIG.gasScriptUrl}/auth/auth/otp/verify`
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'verifyAdminOtp',
-      email,
-      otp: otp.trim(),
-    }),
+    body: JSON.stringify({ email, otp: otp.trim(), suk_key: 'bannerghatta' }),
   })
   const data = await res.json()
   if (!data.success) throw new Error(data.message || 'Invalid OTP')
 }
-
 export default function SignIn({ onSignIn }) {
   const [step, setStep]       = React.useState('form')   // 'form' | 'otp'
   const [email, setEmail]     = React.useState('')
@@ -61,7 +47,7 @@ export default function SignIn({ onSignIn }) {
     setError('')
     setSending(true)
     try {
-      await sendOtpViaGas(trimmedEmail)
+      await sendOtpViaBackend(trimmedEmail)
       setSending(false)
       setStep('otp')
     } catch (err) {
@@ -77,7 +63,7 @@ export default function SignIn({ onSignIn }) {
     setError('')
     setSending(true)
     try {
-      await verifyOtpViaGas(trimmedEmail, otp)
+      await verifyOtpViaBackend(trimmedEmail, otp)
       const user = {
         name: 'Admin',
         email: trimmedEmail,
@@ -98,7 +84,7 @@ export default function SignIn({ onSignIn }) {
     setError('')
     setSending(true)
     try {
-      await sendOtpViaGas(trimmedEmail)
+      await sendOtpViaBackend(trimmedEmail)
       setSending(false)
     } catch (err) {
       setSending(false)
